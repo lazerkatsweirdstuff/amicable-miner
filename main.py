@@ -9,6 +9,8 @@ from tkinter import font as tkfont
 import requests
 from io import BytesIO
 from PIL import Image, ImageTk
+import tempfile
+import os
 
 # ===== GLOBALS =====
 amicables = []
@@ -85,7 +87,7 @@ def export_amicables():
         filepath = filedialog.asksaveasfilename(
             defaultextension=".amcb",
             filetypes=[("Amicable-miner files", "*.amcb"), ("All Files", "*.*")],
-            title="Export Amicable Pairs"
+            title="Export Amicable Miner File"
         )
         
         if filepath:
@@ -101,7 +103,7 @@ def import_amicables():
     try:
         filepath = filedialog.askopenfilename(
             filetypes=[("Amicable-miner files", "*.amcb"), ("All Files", "*.*")],
-            title="Import Amicable Pairs"
+            title="Import Amicable-miner file"
         )
         
         if not filepath:
@@ -136,18 +138,6 @@ def import_amicables():
     except Exception as e:
         messagebox.showerror("Import Failed", f"Error importing file:\n{str(e)}")
 
-# ===== ICON HANDLING =====
-def load_icon_from_url(url):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        icon_data = BytesIO(response.content)
-        icon_image = Image.open(icon_data)
-        return ImageTk.PhotoImage(icon_image)
-    except Exception as e:
-        print(f"Error loading icon: {e}")
-        return None
-
 # ===== GUI =====
 class AmicableApp:
     def __init__(self, root):
@@ -157,32 +147,13 @@ class AmicableApp:
         self.check_queue()
     
     def setup_window(self):
-        self.root.title("Amicable Number Finder")
+        self.root.title("Amicable-Miner")
         self.root.geometry("800x600")
         self.root.minsize(700, 500)
         self.root.configure(bg=BG_COLOR)
         
-        # Load window icon
-        icon_url = "https://raw.githubusercontent.com/lazerkatsweirdstuff/amicable-miner/refs/heads/main/Lo.ico"
-        try:
-            # For Windows
-            import tempfile
-            import os
-            response = requests.get(icon_url)
-            response.raise_for_status()
-            
-            with tempfile.NamedTemporaryFile(suffix='.ico', delete=False) as tmp_file:
-                tmp_file.write(response.content)
-                tmp_file_path = tmp_file.name
-            
-            self.root.iconbitmap(tmp_file_path)
-            os.unlink(tmp_file_path)  # Clean up temporary file
-        except Exception as e:
-            print(f"Error setting window icon: {e}")
-            # Fallback for other platforms
-            icon_img = load_icon_from_url(icon_url)
-            if icon_img:
-                self.root.tk.call('wm', 'iconphoto', self.root._w, icon_img)
+        # Set window icon
+        self.set_window_icon()
         
         # Custom font
         self.custom_font = tkfont.Font(family="Segoe UI", size=10)
@@ -198,6 +169,34 @@ class AmicableApp:
                       foreground=[('active', 'white'), ('pressed', 'white')],
                       background=[('active', SECONDARY_COLOR), ('pressed', PRIMARY_COLOR)])
     
+    def set_window_icon(self):
+        """Set the window icon from the GitHub URL"""
+        icon_url = "https://raw.githubusercontent.com/lazerkatsweirdstuff/amicable-miner/refs/heads/main/Lo.ico"
+        try:
+            # First try Windows-specific method
+            response = requests.get(icon_url, timeout=5)
+            response.raise_for_status()
+            
+            # Create a temporary file
+            with tempfile.NamedTemporaryFile(suffix='.ico', delete=False) as tmp_file:
+                tmp_file.write(response.content)
+                tmp_file_path = tmp_file.name
+            
+            # Set the icon and clean up
+            self.root.iconbitmap(tmp_file_path)
+            os.unlink(tmp_file_path)
+            
+        except Exception as e:
+            print(f"Could not set window icon: {e}")
+            # Fallback for non-Windows systems
+            try:
+                icon_data = BytesIO(response.content)
+                img = Image.open(icon_data)
+                photo = ImageTk.PhotoImage(img)
+                self.root.iconphoto(True, photo)
+            except Exception as e:
+                print(f"Could not set fallback icon: {e}")
+    
     def create_widgets(self):
         # Main container
         main_frame = ttk.Frame(self.root)
@@ -208,7 +207,7 @@ class AmicableApp:
         header_frame.pack(fill=tk.X, pady=(0, 10))
         
         title_label = ttk.Label(header_frame, 
-                              text="Amicable Number Finder", 
+                              text="Amicable-Miner", 
                               font=self.title_font,
                               foreground=PRIMARY_COLOR)
         title_label.pack(side=tk.LEFT)
@@ -225,9 +224,9 @@ class AmicableApp:
                                     command=self.stop, state=tk.DISABLED, **btn_style)
         self.reset_button = ttk.Button(control_frame, text="♻ Reset", 
                                      command=self.reset, **btn_style)
-        self.export_button = ttk.Button(control_frame, text="💾 Export Pairs", 
+        self.export_button = ttk.Button(control_frame, text="💾 Export A-M File", 
                                       command=export_amicables, **btn_style)
-        self.import_button = ttk.Button(control_frame, text="📂 Import Pairs", 
+        self.import_button = ttk.Button(control_frame, text="📂 Import A-M File", 
                                       command=import_amicables, **btn_style)
         
         # Grid layout for buttons
